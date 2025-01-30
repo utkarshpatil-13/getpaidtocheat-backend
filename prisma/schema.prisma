@@ -1,0 +1,162 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// models
+model Admin {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  role      String   @default("moderator") // moderator, superadmin
+  createdAt DateTime @default(now())
+
+  // Reverse relation to Content
+  contents Content[] @relation("AdminContent")
+}
+
+model User {
+  id                  String               @id @default(uuid())
+  username            String               @unique
+  email               String               @unique
+  discordId           String               @unique
+  avatarUrl           String?
+  stripeCustomerId    String?              @unique // Stripe customer ID
+  stripeAccountId     String?              @unique // Stripe Account ID for payouts
+  stripeAccountStatus String?              @default("pending") // pending, active, incomplete
+  subscription        Subscription?
+  socialAccounts      SocialMediaAccount[]
+  videos              Content[]
+  payouts             Payout[]
+  rewards             Reward[]
+  ipAddress           String
+  refreshToken        String?              @unique
+  accessToken         String?           @unique
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  transactions Transaction[] // User can have multiple transactions
+}
+
+model Subscription {
+  id                   String    @id @default(uuid()) // Unique identifier for the subscription
+  userId               String    @unique // Reference to the user
+  stripeCustomerId     String    @unique // Stripe customer ID
+  stripeSubscriptionId String    @unique // Stripe subscription ID
+  productId            String // Stripe Product ID
+  planId               String // Stripe Plan ID
+  status               String    @default("active") // active, expired, cancelled
+  paymentStatus        String    @default("paid") // paid, unpaid, refunded
+  startDate            DateTime  @default(now()) // Subscription start date
+  endDate              DateTime // Subscription end date
+  renewalDate          DateTime? // Next billing cycle date (if applicable)
+  createdAt            DateTime  @default(now()) // Record creation timestamp
+  updatedAt            DateTime  @updatedAt // Last updated timestamp
+
+  user         User          @relation(fields: [userId], references: [id])
+  transactions Transaction[] // Subscription can have multiple transactions
+}
+
+model Content {
+  id             String             @id @default(uuid())
+  userId         String
+  title          String
+  description    String
+  videoUrl       String
+  youtubeVideoId String             @unique
+  thumbnailUrl   String?
+  status         String             @default("pending") // pending, verified, rejected
+  metrics        EngagementMetrics?
+  uploadedAt     DateTime           @default(now())
+  verifiedAt     DateTime?
+  adminId        String?
+
+  user   User    @relation(fields: [userId], references: [id])
+  admin  Admin?  @relation("AdminContent", fields: [adminId], references: [id])
+  payout Payout?
+}
+
+model SocialMediaAccount {
+  id            String    @id @default(uuid())
+  userId        String
+  platform      String
+  accountId     String    @unique
+  accountName   String
+  linkedAt      DateTime  @default(now())
+  access_token  String? // Optional access token
+  refresh_token String? // Optional refresh token
+  token_expiry  DateTime? // Optional token expiry
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, platform]) // Composite unique constraint
+}
+
+model EngagementMetrics {
+  id              String   @id @default(uuid())
+  contentId       String   @unique
+  views           Int      @default(0)
+  likes           Int      @default(0)
+  comments        Int      @default(0)
+  engagementScore Float    @default(0.0)
+  lastPayoutViews Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  content Content @relation(fields: [contentId], references: [id])
+}
+
+model Payout {
+  id               String   @id @default(uuid())
+  userId           String
+  contentId        String   @unique
+  status           String   @default("pending") // pending, approved, rejected
+  totalViews       Int      @default(0)
+  incrementalViews Int      @default(0)
+  amountEarned     Float    @default(0.0)
+  amountDisbursed  Float    @default(0.0)
+  balanceDue       Float    @default(0.0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  content Content @relation(fields: [contentId], references: [id])
+}
+
+model Transaction {
+  id             String   @id @default(uuid())
+  userId         String
+  subscriptionId String? // Optional reference to Subscription
+  amount         Float
+  transactionId  String
+  paymentMethod  String
+  status         String   @default("pending")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+}
+
+model Reward {
+  id           String   @id @default(uuid())
+  userId       String
+  title        String
+  description  String
+  rewardPoints Float
+  issuedAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
