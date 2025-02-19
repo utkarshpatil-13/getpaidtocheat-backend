@@ -13,15 +13,12 @@ export class SocialMediaAccountRepository implements ISocialMediaAccountReposito
           platform,
         },
       });
-      if (!account) {
-        throw new Error('Social media account not found.');
-      }
-      return account;
+      return account; // Return `null` if account is not found instead of throwing an error
     } catch (error) {
       console.error('Error fetching social media account by user and platform:', error);
       throw new Error('Failed to fetch social media account.');
     }
-  }
+}
 
   async updateTokens(userId: string, platform: string, tokenData: {
     access_token?: string;

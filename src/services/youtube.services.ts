@@ -164,6 +164,11 @@ export class YoutubeService implements IYouTubeService {
 
       // throw new ApiError(401, 'Access token has expired. Please reauthorize your account.');
     }
+
+    if (!account) {
+      throw new ApiError(404, 'YouTube account does not exist');
+    }
+  
   
     // Step 3: Fetch all videos of the user
     const userContent = await this.youtubeRepository.getAllContent(userId);

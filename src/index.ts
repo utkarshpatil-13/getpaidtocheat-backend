@@ -11,19 +11,28 @@ import transactionRouter from '@routes/transactions.routes';
 
 const app = new Hono()
 
-// Middlewares
 app.use('*', async (c, next) => {
-    c.header('Access-Control-Allow-Origin', 'https://getpaidtocheat-frontend-six.vercel.app'); // Allow your frontend origin
-    c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS'); // Allowed methods
-    c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization'); // Allowed headers
-    c.header('Access-Control-Allow-Credentials', 'true'); // Allow credentials (cookies, auth headers)
-  
-    if (c.req.method === 'OPTIONS') {
-      // Handle preflight requests
-      return c.body(null, 204); // Respond with 204 No Content
-    }
-    await next();
-  });
+  const allowedOrigins = [
+    'https://getpaidtocheat-frontend-six.vercel.app',
+    'http://localhost:5173'
+  ];
+
+  const origin = c.req.header('Origin');
+
+  if (origin && allowedOrigins.includes(origin)) {
+    c.header('Access-Control-Allow-Origin', origin); // Set dynamic origin
+  }
+
+  c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  c.header('Access-Control-Allow-Credentials', 'true');
+
+  if (c.req.method === 'OPTIONS') {
+    return c.body(null, 204);
+  }
+
+  await next();
+});
 
 // Register Routes
 app.route('/api/user', userRoutes);

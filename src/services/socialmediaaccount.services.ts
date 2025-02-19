@@ -19,7 +19,8 @@ export class SocialMediaAccountService implements ISocialMediaAccountService {
       console.error('Error in service layer:', error);
       throw new ApiError(400, 'Failed to retrieve social media account.');
     }
-  }
+}
+
 
   async updateTokens(userId: string, platform: string): Promise<any> {
     const account = await this.getAccountByUserId(userId, platform);

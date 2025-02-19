@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,17 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// models
 model Admin {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  email     String   @unique
+  id        String    @id @default(uuid())
+  username  String    @unique
+  email     String    @unique
   password  String
-  role      String   @default("moderator") // moderator, superadmin
-  createdAt DateTime @default(now())
-
-  // Reverse relation to Content
-  contents Content[] @relation("AdminContent")
+  role      String    @default("moderator")
+  createdAt DateTime  @default(now())
+  contents  Content[] @relation("AdminContent")
 }
 
 model User {
@@ -32,40 +23,38 @@ model User {
   email               String               @unique
   discordId           String               @unique
   avatarUrl           String?
-  stripeCustomerId    String?              @unique // Stripe customer ID
-  stripeAccountId     String?              @unique // Stripe Account ID for payouts
-  stripeAccountStatus String?              @default("pending") // pending, active, incomplete
-  subscription        Subscription?
-  socialAccounts      SocialMediaAccount[]
+  ipAddress           String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  refreshToken        String?              @unique
+  stripeCustomerId    String?              @unique
+  stripeAccountId     String?              @unique
+  stripeAccountStatus String?              @default("pending")
+  accessToken         String?              @unique
   videos              Content[]
   payouts             Payout[]
   rewards             Reward[]
-  ipAddress           String
-  refreshToken        String?              @unique
-  accessToken         String?           @unique
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-
-  transactions Transaction[] // User can have multiple transactions
+  socialAccounts      SocialMediaAccount[]
+  subscription        Subscription?
+  transactions        Transaction[]
 }
 
 model Subscription {
-  id                   String    @id @default(uuid()) // Unique identifier for the subscription
-  userId               String    @unique // Reference to the user
-  stripeCustomerId     String    @unique // Stripe customer ID
-  stripeSubscriptionId String    @unique // Stripe subscription ID
-  productId            String // Stripe Product ID
-  planId               String // Stripe Plan ID
-  status               String    @default("active") // active, expired, cancelled
-  paymentStatus        String    @default("paid") // paid, unpaid, refunded
-  startDate            DateTime  @default(now()) // Subscription start date
-  endDate              DateTime // Subscription end date
-  renewalDate          DateTime? // Next billing cycle date (if applicable)
-  createdAt            DateTime  @default(now()) // Record creation timestamp
-  updatedAt            DateTime  @updatedAt // Last updated timestamp
-
-  user         User          @relation(fields: [userId], references: [id])
-  transactions Transaction[] // Subscription can have multiple transactions
+  id                   String        @id @default(uuid())
+  userId               String        @unique
+  stripeCustomerId     String        @unique
+  status               String        @default("active")
+  startDate            DateTime      @default(now())
+  endDate              DateTime
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  paymentStatus        String        @default("paid")
+  planId               String
+  productId            String
+  renewalDate          DateTime?
+  stripeSubscriptionId String        @unique
+  user                 User          @relation(fields: [userId], references: [id])
+  transactions         Transaction[]
 }
 
 model Content {
@@ -74,17 +63,16 @@ model Content {
   title          String
   description    String
   videoUrl       String
-  youtubeVideoId String             @unique
   thumbnailUrl   String?
-  status         String             @default("pending") // pending, verified, rejected
-  metrics        EngagementMetrics?
+  status         String             @default("pending")
   uploadedAt     DateTime           @default(now())
   verifiedAt     DateTime?
   adminId        String?
-
-  user   User    @relation(fields: [userId], references: [id])
-  admin  Admin?  @relation("AdminContent", fields: [adminId], references: [id])
-  payout Payout?
+  youtubeVideoId String             @unique
+  admin          Admin?             @relation("AdminContent", fields: [adminId], references: [id])
+  user           User               @relation(fields: [userId], references: [id])
+  metrics        EngagementMetrics?
+  payout         Payout?
 }
 
 model SocialMediaAccount {
@@ -94,60 +82,55 @@ model SocialMediaAccount {
   accountId     String    @unique
   accountName   String
   linkedAt      DateTime  @default(now())
-  access_token  String? // Optional access token
-  refresh_token String? // Optional refresh token
-  token_expiry  DateTime? // Optional token expiry
+  access_token  String?
+  refresh_token String?
+  token_expiry  DateTime?
+  user          User      @relation(fields: [userId], references: [id])
 
-  user User @relation(fields: [userId], references: [id])
-
-  @@unique([userId, platform]) // Composite unique constraint
+  @@unique([userId, platform])
 }
 
 model EngagementMetrics {
   id              String   @id @default(uuid())
-  contentId       String   @unique
   views           Int      @default(0)
   likes           Int      @default(0)
   comments        Int      @default(0)
   engagementScore Float    @default(0.0)
-  lastPayoutViews Int      @default(0)
-  createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-
-  content Content @relation(fields: [contentId], references: [id])
+  contentId       String   @unique
+  createdAt       DateTime @default(now())
+  lastPayoutViews Int      @default(0)
+  content         Content  @relation(fields: [contentId], references: [id])
 }
 
 model Payout {
   id               String   @id @default(uuid())
   userId           String
-  contentId        String   @unique
-  status           String   @default("pending") // pending, approved, rejected
-  totalViews       Int      @default(0)
-  incrementalViews Int      @default(0)
-  amountEarned     Float    @default(0.0)
+  status           String   @default("pending")
   amountDisbursed  Float    @default(0.0)
+  amountEarned     Float    @default(0.0)
   balanceDue       Float    @default(0.0)
+  contentId        String   @unique
   createdAt        DateTime @default(now())
+  incrementalViews Int      @default(0)
+  totalViews       Int      @default(0)
   updatedAt        DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id])
-
-  content Content @relation(fields: [contentId], references: [id])
+  content          Content  @relation(fields: [contentId], references: [id])
+  user             User     @relation(fields: [userId], references: [id])
 }
 
 model Transaction {
-  id             String   @id @default(uuid())
-  userId         String
-  subscriptionId String? // Optional reference to Subscription
+  id             String        @id @default(uuid())
   amount         Float
   transactionId  String
   paymentMethod  String
-  status         String   @default("pending")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  user         User          @relation(fields: [userId], references: [id])
-  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+  status         String        @default("pending")
+  createdAt      DateTime      @default(now())
+  subscriptionId String?
+  updatedAt      DateTime      @updatedAt
+  userId         String
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  user           User          @relation(fields: [userId], references: [id])
 }
 
 model Reward {
@@ -157,6 +140,5 @@ model Reward {
   description  String
   rewardPoints Float
   issuedAt     DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id])
+  user         User     @relation(fields: [userId], references: [id])
 }
